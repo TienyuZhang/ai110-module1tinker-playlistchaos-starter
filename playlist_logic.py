@@ -71,7 +71,8 @@ def classify_song(song: Song, profile: Dict[str, object]) -> str:
     chill_keywords = ["lofi", "ambient", "sleep"]
 
     is_hype_keyword = any(k in genre for k in hype_keywords)
-    is_chill_keyword = any(k in title for k in chill_keywords)
+    # Fix: was checking `title` instead of `genre`; chill keywords are genre names and should be matched against the genre field, not the title.
+    is_chill_keyword = any(k in genre for k in chill_keywords)
 
     if genre == favorite_genre or energy >= hype_min_energy or is_hype_keyword:
         return "Hype"
@@ -101,7 +102,9 @@ def merge_playlists(a: PlaylistMap, b: PlaylistMap) -> PlaylistMap:
     """Merge two playlist maps into a new map."""
     merged: PlaylistMap = {}
     for key in set(list(a.keys()) + list(b.keys())):
-        merged[key] = a.get(key, [])
+        # Fix: copy into a new list instead of aliasing a's list, otherwise
+        # extend() would mutate the input playlist `a` as a side effect.
+        merged[key] = list(a.get(key, []))
         merged[key].extend(b.get(key, []))
     return merged
 
@@ -116,12 +119,16 @@ def compute_playlist_stats(playlists: PlaylistMap) -> Dict[str, object]:
     chill = playlists.get("Chill", [])
     mixed = playlists.get("Mixed", [])
 
-    total = len(hype)
+    # Fix: hype_ratio should be hype songs out of ALL songs, not out of hype songs
+    # (which was always 1.0). Use the total number of songs as the denominator.
+    total = len(all_songs)
     hype_ratio = len(hype) / total if total > 0 else 0.0
 
+    # Fix: average energy should sum over all songs, not just the hype ones,
+    # so the numerator and denominator cover the same population.
     avg_energy = 0.0
     if all_songs:
-        total_energy = sum(song.get("energy", 0) for song in hype)
+        total_energy = sum(song.get("energy", 0) for song in all_songs)
         avg_energy = total_energy / len(all_songs)
 
     top_artist, top_count = most_common_artist(all_songs)
@@ -168,7 +175,10 @@ def search_songs(
 
     for song in songs:
         value = str(song.get(field, "")).lower()
-        if value and value in q:
+        # Fix: was `value in q` (field value inside query), which only matched
+        # when you typed the entire artist name. We want substring search: does
+        # the query appear inside the field value?
+        if value and q in value:
             filtered.append(song)
 
     return filtered
@@ -184,7 +194,8 @@ def lucky_pick(
     elif mode == "chill":
         songs = playlists.get("Chill", [])
     else:
-        songs = playlists.get("Hype", []) + playlists.get("Chill", [])
+        # Fix: was missing Mixed playlist; "any" should draw from all three categories.
+        songs = playlists.get("Hype", []) + playlists.get("Chill", []) + playlists.get("Mixed", [])
 
     return random_choice_or_none(songs)
 
@@ -193,6 +204,10 @@ def random_choice_or_none(songs: List[Song]) -> Optional[Song]:
     """Return a random song or None."""
     import random
 
+    # Fix: random.choice raises IndexError on an empty list. Guard against it so
+    # an empty playlist returns None (which the UI already handles) instead of crashing.
+    if not songs:
+        return None
     return random.choice(songs)
 
 
