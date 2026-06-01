@@ -72,8 +72,8 @@ def classify_song(song: Song, profile: Dict[str, object]) -> str:
     # Fix: was checking `title` instead of `genre`; chill keywords are genre names and should be matched against the genre field, not the title.
     is_chill_keyword = any(k in genre for k in chill_keywords)
 
-    # Fix: favorite_genre is a user *preference*, not a mood signal, so it no
-    # longer forces a song into Hype. Mood is now driven by energy and keywords.
+    # Fix: favorite_genre is a user *preference*, not a mood signal, so it no longer forces a song into Hype.
+    # Mood is now driven by energy and keywords.
     if energy >= hype_min_energy or is_hype_keyword:
         return "Hype"
     if energy <= chill_max_energy or is_chill_keyword:
