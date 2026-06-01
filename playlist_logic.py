@@ -184,18 +184,25 @@ def search_songs(
     return filtered
 
 
+# Which playlist categories each lucky-pick mode draws from. "any" spans all
+# three; unknown modes fall back to "any" (see lucky_pick).
+LUCKY_PICK_CATEGORIES = {
+    "hype": ["Hype"],
+    "chill": ["Chill"],
+    "any": ["Hype", "Chill", "Mixed"],
+}
+
+
 def lucky_pick(
     playlists: PlaylistMap,
     mode: str = "any",
 ) -> Optional[Song]:
     """Pick a song from the playlists according to mode."""
-    if mode == "hype":
-        songs = playlists.get("Hype", [])
-    elif mode == "chill":
-        songs = playlists.get("Chill", [])
-    else:
-        # Fix: was missing Mixed playlist; "any" should draw from all three categories.
-        songs = playlists.get("Hype", []) + playlists.get("Chill", []) + playlists.get("Mixed", [])
+    categories = LUCKY_PICK_CATEGORIES.get(mode, LUCKY_PICK_CATEGORIES["any"])
+
+    songs: List[Song] = []
+    for category in categories:
+        songs.extend(playlists.get(category, []))
 
     return random_choice_or_none(songs)
 
